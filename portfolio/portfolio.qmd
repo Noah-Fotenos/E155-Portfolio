@@ -291,7 +291,7 @@ Throughout the code, comments document module intent, interfaces, and non-obviou
 **Clay–Wolken Fellow, VLSI Lab**
 
 Kaden’s work centers on advancing open hardware. He is currently developing
-formal certification methodologies and hardware implementations of the
+certification tests and hardware implementations of the
 **RISC-V Vector Extension**, contributing to the next generation of RISC-V processors.
 
 Outside of research, he is an athlete on the **CMS Track & Field** team, competing in
@@ -324,7 +324,14 @@ We gratefully acknowledge:
 
 - **Course instructor and staff**, for providing reference designs, lab infrastructure, and guidance on the MCU and FPGA toolchains.
 - **Teaching assistants and classmates**, whose feedback and debugging assistance were invaluable, especially for clocking issues, PS/2 decoding, and synthesis quirks.
-- **Open-source communities**, whose documentation and example projects informed our VGA, SPI, and keyboard interface designs.
+- **Open-source communities**, whose documentation and example projects informed our VGA and PS2 interface(Ben Eater).
+
+## AI Usage
+
+Artificial intelligence tools were used throughout the development of this project to support both hardware and software design tasks. AI was especially helpful during the implementation of the new PLL hardware module on the FPGA, where it accelerated debugging and clarified vendor-specific configuration details. It was also used extensively when writing and refining Verilog modules and their accompanying testbenches, as well as during the final cleanup of the microcontroller firmware.
+
+While AI was generally accurate when provided with complete and precise context, we found it most effective as a correctness amplifier—helping verify logic, catch oversight errors, and suggest clearer structural patterns. As the project deadline approached and fatigue increased, we relied on AI to cross-check our reasoning and ensure that we were not introducing avoidable mistakes. Ultimately, AI served as a supplemental tool that improved workflow efficiency without replacing our judgment or engineering responsibilities.
+
 
 ---
 
@@ -357,9 +364,10 @@ References are presented in a consistent numbered format.
 7. **Related FPGA Tetris Projects**
    Various FPGA Tetris implementations used for conceptual inspiration and comparison of architectures.
 
-<!--
-Add any specific papers, app notes, or GitHub repositories you directly used, with full citations.
--->
+8. Ben Eater. *How does a PS/2 keyboard interface work?* YouTube, 2019. https://www.youtube.com/watch?v=7aXbh9VUB3U
+
+9. Ben Eater. *Building logic for VGA timing signals (video card project).* YouTube, 2015. https://www.youtube.com/watch?v=l7rce6IQDWs
+
 
 ---
 
