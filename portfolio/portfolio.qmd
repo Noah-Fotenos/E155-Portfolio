@@ -307,18 +307,16 @@ combining processor architecture, systems engineering, and algorithmic performan
 
 ### Noah Fotenos
 
-- **Role:** FPGA logic and optimization.
-- **Contributions:**
-  - Implemented and refined modules such as the `piece_mask_generator` and related collision/neighbor logic.
-  - Helped design the piece blitting pipeline and optimize it for synthesis.
-  - Assisted with simulation, verification, and code cleanup.
+**Engineering**, Harvey Mudd College
+**Clay–Wolken Fellow, VLSI Lab**
 
-<!-- Add a link if desired. -->
-<!-- Website / LinkedIn: https://... -->
+Noah's work centers on advancing open hardware. He is currently developing
+certification methodologies and verification test suite for the
+**RISC-V Privilege Extensions**, contributing to the next generation of RISC-V processors.
 
-<!--
-Add additional team members following the same pattern if needed.
--->
+Outside of research, he is an athlete on the **Claremont Cougars** club Lacrosse team. A Residential life Mentor for new students.
+A "Muchachief" leader for the Department of Student Life for oncampus events. And Grutor for E85 Computer Engineering.
+
 
 ## Acknowledgements
 
