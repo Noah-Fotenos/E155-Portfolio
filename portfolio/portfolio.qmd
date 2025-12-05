@@ -1,0 +1,409 @@
+---
+title: "Project Portfolio: Microcontroller–FPGA Tetris System"
+subtitle: "MicroPs_Project Hardware/Software Co-Design Portfolio"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: false
+---
+
+# Abstract
+
+This project implements a complete **Tetris game system** using a dedicated microcontroller (MCU) and an FPGA working together over a well-defined hardware interface. The FPGA implements the **real-time game logic and VGA video pipeline**, while the MCU provides **hardware random number generation**, configuration, and a control/status channel. The final system drives a VGA display at 640×480@60 Hz, accepts input from a PS/2 keyboard, and renders a flicker-free Tetris game with proper line clears, scoring, and loss detection.
+
+The main goals of this project were to:
+
+- Demonstrate **hardware/software co-design** using a discrete MCU and FPGA.
+- Implement a **fully hardware Tetris pipeline** on the FPGA with clean, parameterized RTL.
+- Meet real-time **display and responsiveness requirements** (>\~20 Hz update, no visible flicker or ghosting).
+- Extend the course reference designs with **new hardware modules** including SPI-based telemetry, line-clear logic, and debug overlays.
+
+---
+
+# Proficiency & Technical Information
+
+## System Overview
+
+At a high level, the system consists of:
+
+- A **microcontroller (MCU)** responsible for:
+  - Generating hardware random numbers used to select new tetromino pieces.
+  - Sending configuration and debug commands over SPI.
+  - Optionally logging game telemetry for analysis.
+
+- An **FPGA** responsible for:
+  - VGA timing generation at 640×480@60 Hz using an on-chip PLL.
+  - Tetris game state (piece movement, rotation, collision detection, line clears, scoring).
+  - Input decoding from a PS/2 keyboard.
+  - Telemetry overlay and debug visualization on top of the game board.
+
+Communication between the MCU and FPGA uses a custom **SPI-based protocol**, with the MCU as master. The FPGA exposes memory-mapped registers for commands, random-number injection, and telemetry readback.
+
+<!-- If you want an inline block diagram, you can uncomment and point the image to your exported draw.io/KiCad diagram. -->
+<!--
+![System block diagram](images/microps-block-diagram.svg)
+-->
+
+## Microcontroller Design Overview
+
+The microcontroller acts as a **control and randomness front-end** for the FPGA:
+
+- **Hardware Random Source**
+  The MCU uses its on-chip hardware RNG (or a pseudorandom generator seeded by a hardware source, depending on the specific device) to generate random values that select the next Tetris piece type and orientation. This prevents predictable piece sequences and keeps gameplay fair.
+
+- **SPI Command/Status Channel**
+  The MCU is the **SPI master**, periodically transmitting:
+  - New random seeds or piece IDs.
+  - Control commands such as game reset, difficulty, and debug modes.
+  - Requests for telemetry or status.
+
+  The SPI protocol is hardware-friendly: fixed-width frames with an opcode, optional payload, and parity/error-check bits. The FPGA SPI peripheral exposes the latest command in a set of registers used by the game logic. Parity is checked before updating state, preventing corrupted commands from affecting gameplay.
+
+- **Optional Telemetry / Logging**
+  The MCU can request internal FPGA state such as lines cleared, frame counter, or current score. This data can be logged over a serial port or used for profiling and debugging.
+
+## FPGA Design Overview
+
+The FPGA implements all **real-time, cycle-accurate tasks** in the system:
+
+### Clocking and PLL
+
+An on-chip PLL generates the required pixel clock for 640×480@60 Hz VGA from the external oscillator. All VGA timing and game logic are synchronized to this clock domain, ensuring a stable display with no visible jitter or tearing. The design avoids derived or gated clocks; instead, it uses enables in a single clock domain, which improves timing closure and reliability.
+
+### VGA Timing Generator
+
+A parameterized VGA controller (e.g., `vga_pkg::VGA_640x480_60`) generates `hsync`, `vsync`, and `(x, y)` pixel coordinates for each active pixel. The controller:
+
+- Encodes the full VGA timing (visible region, front/back porch, sync pulse).
+- Provides a `visible` flag so downstream modules only draw within the active video region.
+- Can be reparameterized for other resolutions by changing a single configuration record.
+
+### Tetris Game Logic
+
+The core game hardware includes:
+
+- **Piece State Machine**
+  Tracks the active tetromino’s type, rotation state, and `(x, y)` position. It advances in response to:
+  - Gravity ticks (drop timer).
+  - Left/right movement commands.
+  - Rotation commands.
+
+- **Collision Detection**
+  Uses the current board representation and the active piece mask to detect collisions with:
+  - Walls and floor.
+  - Existing locked blocks.
+
+  Moves and rotations are only committed if they result in a legal position.
+
+- **Line-Clear Detection and Board Update**
+  Each frame, the hardware scans board rows to detect any that are fully occupied. When a full row is found:
+  - A `clearing_line` signal is asserted.
+  - The row is cleared, and rows above shift downward (one row per update in the current design).
+  - The score and line counters are updated accordingly.
+
+- **Loss Condition and Reset**
+  If a new piece cannot be placed (because blocks already occupy its spawn region), the system enters a loss state. A reset command (from the MCU over SPI or from a dedicated key) clears the board and restarts the game.
+
+### Board Representation & Blitting
+
+The game board is stored as a 2D grid (e.g., 10 columns × 20 rows). Supporting modules include:
+
+- `piece_mask_generator`: computes a local 6×6 window around the active piece, providing convenient access for boundary checks and neighborhood-based logic.
+- `blit_piece`: overlays the active tetromino onto the fixed board state, computing board indices for each block in the 4×4 piece grid and combining them with the base state using simple bitwise operations.
+
+This separation between fixed board and active piece enables clean rendering and simplifies the line-clear logic.
+
+### Input Handling (PS/2 Keyboard)
+
+A PS/2 decoder samples the keyboard clock and data lines, decodes scan codes, and maps them to game commands:
+
+- Left / Right movement
+- Rotation
+- Soft drop / hard drop (if enabled)
+- Reset / pause (optional)
+
+The decoder outputs debounced, single-cycle command pulses that the game state machine consumes, ensuring responsive but glitch-free behavior.
+
+### Telemetry and Debug Overlay
+
+A `telemetry_module` renders text or numeric values into a reserved region of the screen. Internally:
+
+- Signals such as score, lines cleared, current piece ID, and frame count are packed into a telemetry bus.
+- The module converts these values into characters and overlays them after the game board is drawn, without affecting the board’s underlying representation.
+
+This hardware overlay is extremely helpful for debugging timing issues and verifying state transitions.
+
+### Schematics and Block Diagram
+
+Schematics are neatly drawn with a CAD program (e.g., KiCad) and include:
+
+- FPGA dev board power and IO pin assignments.
+- MCU dev board connections.
+- SPI, PS/2, and VGA connectors with signal names and reference designators.
+- Any custom IO or adapter boards used.
+
+<!--
+Uncomment and point these to your exported images when ready.
+
+![System schematic](images/system-schematic.png)
+![FPGA top-level block diagram](images/fpga-top-block-diagram.svg)
+-->
+
+---
+
+# Hardware & Bill of Materials
+
+## Bill of Materials (BOM)
+
+The table below lists the main hardware components used in the MicroPs system. Fill in the rows with your exact parts, quantities, and prices.
+
+| Item / RefDes | Description                                | Manufacturer / Part # | Qty | Unit Price (USD) | Ext. Price (USD) |
+|---------------|--------------------------------------------|-----------------------|-----|------------------|------------------|
+<!--
+| U1            | FPGA development board                     |                       | 1   |                  |                  |
+| U2            | Microcontroller development board          |                       | 1   |                  |                  |
+| J1            | VGA connector (HD-15)                      |                       | 1   |                  |                  |
+| J2            | PS/2 connector                             |                       | 1   |                  |                  |
+| R*            | Resistor ladder for VGA DAC                |                       |     |                  |                  |
+| C*            | Decoupling capacitors                      |                       |     |                  |                  |
+| ...           | ...                                        |                       |     |                  |                  |
+-->
+
+You can add subtotals if needed:
+
+- **Electronics subtotal:**
+- **Mechanical / misc subtotal:**
+- **Total project cost:**
+
+## New Hardware
+
+### New RTL Hardware Modules
+
+In addition to the material covered in class, the project includes several **new hardware modules**:
+
+- **Custom SPI Core (`spi`)**
+  - Implements an SPI slave interface tuned to the MCU’s clock rate and protocol.
+  - Includes parity or simple error checking before committing incoming data to registers.
+  - Exposes clean status and data-valid flags to the game logic.
+
+- **Piece Mask Generator (`piece_mask_generator`)**
+  - Generates a 6×6 neighborhood window around the active piece, clamping out-of-bounds accesses.
+  - Simplifies collision and boundary logic while remaining synthesizable and efficient.
+
+- **Blit Piece (`blit_piece`)**
+  - Computes the board indices for each block in the 4×4 tetromino grid.
+  - Overlays the active piece onto the static board state using logical operations, producing the rendered board for VGA.
+
+- **Line Clear Logic**
+  - Detects full lines using row-wise reductions and asserts `clearing_line`.
+  - Shifts rows above a cleared row downward, one row per update cycle in the project’s implementation.
+  - Designed to be efficient and friendly to synthesis (using enables instead of large mux trees).
+
+- **Telemetry Overlay (`telemetry_module`)**
+  - Parameterized in number of signals and bit-width.
+  - Renders debug information directly into the frame, making it easy to observe internal state without a logic analyzer.
+
+### New Physical Hardware (If Any)
+
+If you designed any **custom PCBs or adapter boards** (for connectors, user input, or power distribution), they can be described here. For example:
+
+- A small IO board that breaks out VGA, PS/2, and buttons from the FPGA dev board headers.
+- A power board to distribute 5 V / 3.3 V to both MCU and FPGA boards with fusing and test points.
+
+<!--
+You can add photos when ready:
+
+![Custom IO board](images/custom-io-board.jpg)
+-->
+
+These new hardware elements demonstrate proficiency in extending reference designs with substantial, original functionality.
+
+---
+
+# Results
+
+## Functional Results
+
+The MicroPs system achieves the core functional requirements of a Tetris-style game:
+
+- **Hardware random from MCU**
+  New pieces are chosen based on MCU-generated randomness, avoiding obvious patterns.
+
+- **Hardware PLL from FPGA**
+  The VGA pixel clock is generated by the FPGA’s PLL, producing a stable 640×480@60 Hz signal.
+
+- **Display updates > 20 Hz**
+  The display runs at 60 Hz, so the visible game update rate is comfortably above the 20 Hz requirement.
+
+- **No visible flicker or ghosting**
+  The design uses a consistent board representation and clean overlay of the active piece, so the display does not flicker or ghost between frames.
+
+- **Correct block behavior**
+  - Blocks clear when a line is fully filled.
+  - Lines above a cleared line shift downward.
+  - Blocks lower at a standard, controllable rate.
+  - New random blocks appear once the previous block settles.
+  - Game boundaries stop pieces from moving outside the playfield.
+
+- **Player input and control**
+  - The player can move and rotate pieces using a PS/2 keyboard.
+  - Commands are decoded in hardware and applied on the appropriate clock edges.
+  - The game resets correctly when the loss condition is triggered or when reset is commanded.
+
+## Quantitative Performance
+
+You can fill in your actual numbers here once measured:
+
+- **Frame rate:** 60 Hz VGA refresh (target).
+- **Approximate input-to-display latency:** on the order of one frame period (dominated by the display).
+- **FPGA resource utilization:**
+  - LUTs:
+  - Flip-flops:
+  - Block RAMs:
+
+- **Clock frequency of main game logic:**
+
+These metrics demonstrate that the design has comfortable timing margins, meets its refresh requirements, and fits within the available FPGA resources.
+
+## Design Tradeoffs and Commentary
+
+Several design decisions improved performance and clarity:
+
+- **Single-clock-domain design with enables** simplifies timing closure and avoids metastability issues.
+- **Parameterized modules** (e.g., board dimensions, number of telemetry signals, VGA parameters) make the design reusable for other games or resolutions.
+- **Hardware-based line clear and score tracking** eliminates the need for a software game loop, keeping the MCU simple and focused on randomness and control.
+
+---
+
+# Code Repository
+
+All project code (software and HDL) is hosted on GitHub:
+
+- **MicroPs_Project Repository:**
+  <https://github.com/jacassidy/MicroPs_Project>
+
+The repository contains:
+
+- FPGA RTL (SystemVerilog or Verilog modules for VGA, Tetris logic, SPI, PS/2, telemetry, etc.).
+- MCU firmware source code and any supporting scripts.
+- Simulation/testbench files as applicable.
+- Project build files (e.g., synthesis, place-and-route, and programming scripts).
+- A `README.md` describing the main elements of the project and where they are found.
+
+Throughout the code, comments document module intent, interfaces, and non-obvious implementation details to aid future readers and maintainers.
+
+---
+
+# Team & Acknowledgements
+
+## Team Members
+
+### James Kaden Cassidy
+
+- **Role:** FPGA lead, system integration, and overall project coordination.
+- **Contributions:**
+  - Designed and implemented the top-level FPGA modules, including VGA timing, Tetris game logic, and telemetry overlay.
+  - Integrated the SPI interface between MCU and FPGA.
+  - Led testing, debugging, and final system bring-up.
+
+<!-- You can add a public link when ready, for example: LinkedIn, personal site, etc. -->
+<!-- Website / LinkedIn: https://... -->
+
+### Noah Fotenos
+
+- **Role:** FPGA logic and optimization.
+- **Contributions:**
+  - Implemented and refined modules such as the `piece_mask_generator` and related collision/neighbor logic.
+  - Helped design the piece blitting pipeline and optimize it for synthesis.
+  - Assisted with simulation, verification, and code cleanup.
+
+<!-- Add a link if desired. -->
+<!-- Website / LinkedIn: https://... -->
+
+<!--
+Add additional team members following the same pattern if needed.
+-->
+
+## Acknowledgements
+
+We gratefully acknowledge:
+
+- **Course instructor and staff**, for providing reference designs, lab infrastructure, and guidance on the MCU and FPGA toolchains.
+- **Teaching assistants and classmates**, whose feedback and debugging assistance were invaluable, especially for clocking issues, PS/2 decoding, and synthesis quirks.
+- **Open-source communities**, whose documentation and example projects informed our VGA, SPI, and keyboard interface designs.
+
+---
+
+# References
+
+References are presented in a consistent numbered format.
+
+1. **Tetris Overview**
+   “Tetris.” *Wikipedia, The Free Encyclopedia.*
+   <https://en.wikipedia.org/wiki/Tetris>
+
+2. **VGA Timing Reference**
+   “640×480 @ 60 Hz VGA Signal Timing.” *TinyVGA.*
+   <https://tinyvga.com/vga-timing/640x480@60Hz>
+
+3. **FPGA Family Datasheet**
+   Lattice Semiconductor. *iCE40 UltraPlus Family Data Sheet.*
+   (Or the relevant FPGA family used in this project.)
+
+4. **Toolchain Documentation**
+   Lattice Semiconductor. *Radiant Software User Guide* and application notes for the chosen FPGA.
+
+5. **PS/2 Protocol Description**
+   Adam Chapweske. “The PS/2 Mouse/Keyboard Protocol.”
+   <https://computer-engineering.org/ps2protocol/>
+
+6. **Course Materials**
+   Internal course notes and lab handouts for Microprocessors / Embedded Systems (MicroPs), including MCU–FPGA communication, VGA controller design, and PS/2 interface labs.
+
+7. **Related FPGA Tetris Projects**
+   Various FPGA Tetris implementations used for conceptual inspiration and comparison of architectures.
+
+<!--
+Add any specific papers, app notes, or GitHub repositories you directly used, with full citations.
+-->
+
+---
+
+# Multimedia Documentation
+
+## Demo Video
+
+A short video demonstrates the system running Tetris on the VGA display, showing:
+
+- Stable 640×480@60 Hz video.
+- Piece motion, rotation, and line clears.
+- Hardware-generated random pieces and responsive keyboard control.
+
+<!--
+When you have a hosted video (e.g., YouTube), you can embed it like this:
+
+<iframe width="560" height="315"
+        src="https://www.youtube.com/embed/VIDEO_ID"
+        title="MicroPs FPGA Tetris Demo"
+        frameborder="0"
+        allowfullscreen>
+</iframe>
+-->
+
+## Photos
+
+Photos of the final design help document the hardware:
+
+- FPGA board connected to the VGA monitor.
+- MCU board with SPI connection to the FPGA.
+- Any custom PCBs or wiring harnesses.
+- Close-up of the VGA output showing the Tetris game.
+
+<!--
+Uncomment and point these to your actual images when ready.
+
+![FPGA board and VGA monitor](images/fpga-vga-setup.jpg)
+![MCU and FPGA interconnect](images/mcu-fpga-interconnect.jpg)
+![Final system overview](images/microps-final-setup.jpg)
+-->
