@@ -27,9 +27,8 @@ The main goals of this project were to:
 At a high level, the system consists of:
 
 - A **microcontroller (MCU)** responsible for:
-  - Generating hardware random numbers used to select new tetromino pieces.
-  - Sending configuration and debug commands over SPI.
-  - Optionally logging game telemetry for analysis.
+  - Generating hardware random numbers used to select new Tetris pieces.
+  - Sending configuration and Keyboard commands over SPI.
 
 - An **FPGA** responsible for:
   - VGA timing generation at 640×480@60 Hz using an on-chip PLL.
@@ -53,13 +52,16 @@ The microcontroller acts as a **control and randomness front-end** for the FPGA:
 - **SPI Command/Status Channel**
   The MCU is the **SPI master**, periodically transmitting:
   - New random seeds or piece IDs.
-  - Control commands such as game reset, difficulty, and debug modes.
-  - Requests for telemetry or status.
+  - Receives and decodes USART PS/2 inputs from keyboard interrupts.
+  - Sends random seed and keyboard input over SPI to FPGA
 
-  The SPI protocol is hardware-friendly: fixed-width frames with an opcode, optional payload, and parity/error-check bits. The FPGA SPI peripheral exposes the latest command in a set of registers used by the game logic. Parity is checked before updating state, preventing corrupted commands from affecting gameplay.
+Piece randomness is handled entirely in firmware through a small random module. At startup, the STM32L432KC initializes this module once, which sets up an internal state variable for a lightweight pseudo-random number generator. From that point on, the main game loop (and/or timer/interrupt code) periodically updates this state and writes a 3-bit value into the global variable g_random3.
 
-- **Optional Telemetry / Logging**
-  The MCU can request internal FPGA state such as lines cleared, frame counter, or current score. This data can be logged over a serial port or used for profiling and debugging.
+The SPI protocol is hardware-friendly: fixed-width frames with an opcode, optional payload, and parity/error-check bits. whenever the MCU sends a game update to the FPGA over SPI, it packs these three random bits into the same SPI word that carries the current keyboard state. On the FPGA, that 3-bit field is decoded and used to drive Tetris gameplay randomness (for example, piece selection or spawn behavior). Keeping the random logic on the MCU lets us change or debug the RNG algorithm entirely in C without touching the Verilog design, while still delivering compact, timing-friendly random signals to the FPGA each frame.
+
+
+
+
 
 ## FPGA Design Overview
 
