@@ -211,7 +211,7 @@ These new hardware elements demonstrate proficiency in extending reference desig
 
 ## Functional Results
 
-The MicroPs system achieves the core functional requirements of a Tetris-style game:
+The system achieves the core functional requirements of a Tetris-style game:
 
 - **Hardware random from MCU**
   New pieces are chosen based on MCU-generated randomness, avoiding obvious patterns.
@@ -234,7 +234,7 @@ The MicroPs system achieves the core functional requirements of a Tetris-style g
 
 - **Player input and control**
   - The player can move and rotate pieces using a PS/2 keyboard.
-  - Commands are decoded in hardware and applied on the appropriate clock edges.
+  - Commands are decoded and applied on the appropriate clock edges.
   - The game resets correctly when the loss condition is triggered or when reset is commanded.
 
 ## Quantitative Performance
@@ -364,9 +364,10 @@ References are presented in a consistent numbered format.
 7. **Related FPGA Tetris Projects**
    Various FPGA Tetris implementations used for conceptual inspiration and comparison of architectures.
 
-8. Ben Eater. *How does a PS/2 keyboard interface work?* YouTube, 2019. https://www.youtube.com/watch?v=7aXbh9VUB3U
+8. Ben Eater. *How does a PS/2 keyboard interface work?* YouTube, 2019. [https://www.youtube.com/watch?v=7aXbh9VUB3U](https://www.youtube.com/watch?v=7aXbh9VUB3U)
 
-9. Ben Eater. *Building logic for VGA timing signals (video card project).* YouTube, 2015. https://www.youtube.com/watch?v=l7rce6IQDWs
+9. Ben Eater. *Building logic for VGA timing signals (video card project).* YouTube, 2015. [https://www.youtube.com/watch?v=l7rce6IQDWs](https://www.youtube.com/watch?v=l7rce6IQDWs)
+
 
 
 ---
