@@ -287,14 +287,21 @@ Throughout the code, comments document module intent, interfaces, and non-obviou
 
 ### James Kaden Cassidy
 
-- **Role:** FPGA lead, system integration, and overall project coordination.
-- **Contributions:**
-  - Designed and implemented the top-level FPGA modules, including VGA timing, Tetris game logic, and telemetry overlay.
-  - Integrated the SPI interface between MCU and FPGA.
-  - Led testing, debugging, and final system bring-up.
+**Applied Mathematics in Computation**, Harvey Mudd College
+**Clay–Wolken Fellow, VLSI Lab**
 
-<!-- You can add a public link when ready, for example: LinkedIn, personal site, etc. -->
-<!-- Website / LinkedIn: https://... -->
+Kaden’s work centers on advancing open hardware. He is currently developing
+formal certification methodologies and hardware implementations of the
+**RISC-V Vector Extension**, contributing to the next generation of RISC-V processors.
+
+Outside of research, he is an athlete on the **CMS Track & Field** team, competing in
+the hammer, shot put, and discus.
+
+Kaden is passionate about **hardware/software co-design** and seeks opportunities
+combining processor architecture, systems engineering, and algorithmic performance.
+
+🌐 <https://www.kadencassidy.com/>
+
 
 ### Noah Fotenos
 
